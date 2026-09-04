@@ -10,6 +10,7 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
   const { login } = useAuth()
   const navigate = useNavigate()
 
@@ -19,10 +20,19 @@ const AdminLogin = () => {
     setLoading(true)
 
     try {
-      await login(email, password)
+      // Prevent empty values
+      if (!email.trim() || !password) {
+        setError('Email or Password is invalid')
+        return
+      }
+
+      await login(email.trim(), password)
+
       navigate('/admin')
     } catch (err) {
-      setError(err.message)
+      // Always show the same generic message.
+      // Do not reveal whether email/username or password is wrong.
+      setError('Email or Password is invalid')
     } finally {
       setLoading(false)
     }
@@ -40,11 +50,18 @@ const AdminLogin = () => {
           <div className="w-16 h-16 mx-auto bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl flex items-center justify-center mb-4">
             <span className="text-white font-bold text-xl">HG</span>
           </div>
-          <h1 className="brand-gradient-text-strong text-2xl font-bold">Admin Login</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Hi Grove Technologies</p>
+
+          <h1 className="brand-gradient-text-strong text-2xl font-bold">
+            Admin Login
+          </h1>
+
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Hi Grove Technologies
+          </p>
         </div>
 
         <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl border border-gray-200 dark:border-dark-border p-8">
+
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm">
               {error}
@@ -52,43 +69,69 @@ const AdminLogin = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Email / Username */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Email
+              </label>
+
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setError('')
+                  }}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   placeholder="username"
+                  autoComplete="username"
                 />
               </div>
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Password
+              </label>
+
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    setError('')
+                  }}
                   className="w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
 
+            {/* Sign In */}
             <button
               type="submit"
               disabled={loading}
@@ -106,7 +149,10 @@ const AdminLogin = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <Link to="/" className="text-sm text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+            <Link
+              to="/"
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+            >
               &larr; Back to Website
             </Link>
           </div>
