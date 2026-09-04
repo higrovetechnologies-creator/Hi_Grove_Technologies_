@@ -11,7 +11,8 @@ import {
   ExternalLink,
   Upload,
   Link as LinkIcon,
-  Loader2
+  Loader2,
+  Calendar
 } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import EmptyState from '../../components/EmptyState'
@@ -38,6 +39,7 @@ const compressImage = (file) => {
         canvas.height = height
 
         const context = canvas.getContext('2d')
+
         if (!context) {
           reject(new Error('Could not create image canvas'))
           return
@@ -45,10 +47,8 @@ const compressImage = (file) => {
 
         context.drawImage(image, 0, 0, width, height)
 
-        // WebP keeps thumbnails much smaller while preserving good quality.
         let dataUrl = canvas.toDataURL('image/webp', IMAGE_QUALITY)
 
-        // Fallback for browsers that don't support WebP canvas encoding.
         if (!dataUrl.startsWith('data:image/webp')) {
           dataUrl = canvas.toDataURL('image/jpeg', IMAGE_QUALITY)
         }
@@ -74,13 +74,21 @@ const emptyForm = {
   technologies: '',
   thumbnail: '',
   liveUrl: '',
+  completionDate: '',
   featured: false,
   status: 'In Progress',
   active: true
 }
 
 const AdminProjects = () => {
-  const { projects, addProject, updateProject, deleteProject, addToast } = useData()
+  const {
+    projects,
+    addProject,
+    updateProject,
+    deleteProject,
+    addToast
+  } = useData()
+
   const fileInputRef = useRef(null)
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -91,13 +99,14 @@ const AdminProjects = () => {
   const [formData, setFormData] = useState(emptyForm)
 
   const filteredProjects = projects.filter((p) =>
-    p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.description.toLowerCase().includes(searchQuery.toLowerCase())
+    p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const handleOpenModal = (project = null) => {
     if (project) {
       setEditingProject(project)
+
       setFormData({
         title: project.title || '',
         description: project.description || '',
@@ -107,6 +116,12 @@ const AdminProjects = () => {
         technologies: project.technologies?.join(', ') || '',
         thumbnail: project.thumbnail || '',
         liveUrl: project.liveUrl || '',
+
+        // Completion Date
+        completionDate: project.completionDate
+          ? project.completionDate.substring(0, 10)
+          : '',
+
         featured: !!project.featured,
         status: project.status || 'In Progress',
         active: project.active !== false
@@ -119,10 +134,17 @@ const AdminProjects = () => {
     setIsModalOpen(true)
   }
 
+  const handleCloseModal = () => {
+    if (isImageUploading) return
+
+    setIsModalOpen(false)
+    setEditingProject(null)
+    setFormData({ ...emptyForm })
+  }
+
   const handleImageUpload = async (event) => {
     const file = event.target.files?.[0]
 
-    // Allows selecting the same image again after removing/changing it.
     event.target.value = ''
 
     if (!file) return
@@ -150,7 +172,11 @@ const AdminProjects = () => {
       addToast?.('Project image added successfully', 'success')
     } catch (error) {
       console.error('Image upload error:', error)
-      addToast?.('Could not process the image. Please try another image.', 'error')
+
+      addToast?.(
+        'Could not process the image. Please try another image.',
+        'error'
+      )
     } finally {
       setIsImageUploading(false)
     }
@@ -167,23 +193,33 @@ const AdminProjects = () => {
     e.preventDefault()
 
     if (!formData.thumbnail.trim()) {
-      addToast?.('Please upload a project image or enter an image URL', 'error')
+      addToast?.(
+        'Please upload a project image or enter an image URL',
+        'error'
+      )
       return
     }
 
     const data = {
       ...formData,
+
       technologies: formData.technologies
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean),
+
+      // Keep empty date as null
+      completionDate: formData.completionDate || null,
+
       active: formData.active !== false
     }
 
     if (editingProject) {
       updateProject(editingProject.id, data)
+      addToast?.('Project updated successfully', 'success')
     } else {
       addProject(data)
+      addToast?.('Project created successfully', 'success')
     }
 
     setIsModalOpen(false)
@@ -198,9 +234,13 @@ const AdminProjects = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <div>
-            <h1 className="brand-gradient-text-strong text-3xl font-bold">Projects</h1>
+            <h1 className="brand-gradient-text-strong text-3xl font-bold">
+              Projects
+            </h1>
+
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               Manage your portfolio projects
             </p>
@@ -215,9 +255,11 @@ const AdminProjects = () => {
           </button>
         </div>
 
+        {/* Search */}
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+
             <input
               type="text"
               placeholder="Search projects..."
@@ -228,6 +270,7 @@ const AdminProjects = () => {
           </div>
         </div>
 
+        {/* Projects */}
         {filteredProjects.length === 0 ? (
           <EmptyState
             title="No Projects Yet"
@@ -237,6 +280,8 @@ const AdminProjects = () => {
           />
         ) : (
           <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-dark-border overflow-hidden">
+
+            {/* Desktop */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -244,15 +289,23 @@ const AdminProjects = () => {
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Project
                     </th>
+
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Category
                     </th>
+
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Status
                     </th>
+
+                    <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Completed
+                    </th>
+
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Featured
                     </th>
+
                     <th className="text-right px-6 py-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Actions
                     </th>
@@ -265,6 +318,7 @@ const AdminProjects = () => {
                       key={project.id}
                       className="hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors"
                     >
+                      {/* Project */}
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
                           {project.thumbnail ? (
@@ -283,6 +337,7 @@ const AdminProjects = () => {
                             <p className="font-medium text-gray-900 dark:text-white text-sm">
                               {project.title}
                             </p>
+
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                               {project.industry}
                             </p>
@@ -290,10 +345,12 @@ const AdminProjects = () => {
                         </div>
                       </td>
 
+                      {/* Category */}
                       <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                         {project.category}
                       </td>
 
+                      {/* Status */}
                       <td className="px-6 py-4">
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -306,6 +363,20 @@ const AdminProjects = () => {
                         </span>
                       </td>
 
+                      {/* Completion Date */}
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                        {project.completionDate
+                          ? new Date(
+                              `${project.completionDate.substring(0, 10)}T00:00:00`
+                            ).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })
+                          : '—'}
+                      </td>
+
+                      {/* Featured */}
                       <td className="px-6 py-4">
                         <button
                           onClick={() =>
@@ -322,11 +393,16 @@ const AdminProjects = () => {
                         >
                           <Star
                             className="w-5 h-5"
-                            fill={project.featured ? 'currentColor' : 'none'}
+                            fill={
+                              project.featured
+                                ? 'currentColor'
+                                : 'none'
+                            }
                           />
                         </button>
                       </td>
 
+                      {/* Actions */}
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-1">
                           <a
@@ -362,6 +438,7 @@ const AdminProjects = () => {
               </table>
             </div>
 
+            {/* Mobile */}
             <div className="md:hidden divide-y divide-gray-100 dark:divide-dark-border">
               {filteredProjects.map((project) => (
                 <div key={project.id} className="p-4">
@@ -382,8 +459,9 @@ const AdminProjects = () => {
                       <p className="font-medium text-gray-900 dark:text-white text-sm">
                         {project.title}
                       </p>
+
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {project.category} &middot; {project.industry}
+                        {project.category} · {project.industry}
                       </p>
                     </div>
                   </div>
@@ -426,6 +504,23 @@ const AdminProjects = () => {
                       </button>
                     </div>
                   </div>
+
+                  {project.completionDate && (
+                    <div className="flex items-center gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      <Calendar className="w-4 h-4" />
+
+                      <span>
+                        Completed:{' '}
+                        {new Date(
+                          `${project.completionDate.substring(0, 10)}T00:00:00`
+                        ).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -433,11 +528,11 @@ const AdminProjects = () => {
         )}
       </motion.div>
 
-      {/* Add/Edit Modal */}
+      {/* Add / Edit Modal */}
       {isModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={() => setIsModalOpen(false)}
+          onClick={handleCloseModal}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -446,21 +541,29 @@ const AdminProjects = () => {
             onClick={(e) => e.stopPropagation()}
             className="bg-white dark:bg-dark-card rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-dark-border"
           >
+            {/* Modal Header */}
             <div className="sticky top-0 z-10 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border p-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {editingProject ? 'Edit Project' : 'Add New Project'}
+                {editingProject
+                  ? 'Edit Project'
+                  : 'Add New Project'}
               </h2>
 
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={handleCloseModal}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-dark-border rounded-lg"
               >
                 <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            <form
+              onSubmit={handleSubmit}
+              className="p-6 space-y-5"
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                {/* Title */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Project Title *
@@ -471,12 +574,16 @@ const AdminProjects = () => {
                     required
                     value={formData.title}
                     onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
+                      setFormData({
+                        ...formData,
+                        title: e.target.value
+                      })
                     }
                     className="w-full px-4 py-2.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
 
+                {/* Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Category *
@@ -487,12 +594,16 @@ const AdminProjects = () => {
                     required
                     value={formData.category}
                     onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
+                      setFormData({
+                        ...formData,
+                        category: e.target.value
+                      })
                     }
                     className="w-full px-4 py-2.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
 
+                {/* Industry */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Industry *
@@ -503,13 +614,16 @@ const AdminProjects = () => {
                     required
                     value={formData.industry}
                     onChange={(e) =>
-                      setFormData({ ...formData, industry: e.target.value })
+                      setFormData({
+                        ...formData,
+                        industry: e.target.value
+                      })
                     }
                     className="w-full px-4 py-2.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
 
-                {/* Project Image Upload */}
+                {/* Project Image */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Project Image *
@@ -534,7 +648,9 @@ const AdminProjects = () => {
                       <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-between gap-3">
                         <button
                           type="button"
-                          onClick={() => fileInputRef.current?.click()}
+                          onClick={() =>
+                            fileInputRef.current?.click()
+                          }
                           disabled={isImageUploading}
                           className="inline-flex items-center gap-2 px-3 py-2 bg-white/95 hover:bg-white text-gray-900 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
                         >
@@ -543,6 +659,7 @@ const AdminProjects = () => {
                           ) : (
                             <Upload className="w-4 h-4" />
                           )}
+
                           Change Image
                         </button>
 
@@ -559,7 +676,9 @@ const AdminProjects = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() =>
+                        fileInputRef.current?.click()
+                      }
                       disabled={isImageUploading}
                       className="w-full h-48 border-2 border-dashed border-gray-300 dark:border-dark-border hover:border-brand-500 dark:hover:border-brand-500 rounded-2xl bg-gray-50 dark:bg-dark-bg flex flex-col items-center justify-center gap-3 transition-colors disabled:opacity-50"
                     >
@@ -577,6 +696,7 @@ const AdminProjects = () => {
                             ? 'Processing image...'
                             : 'Click to upload project image'}
                         </p>
+
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           PNG, JPG, WEBP or GIF · Max 8MB
                         </p>
@@ -586,12 +706,17 @@ const AdminProjects = () => {
 
                   <div className="flex items-center gap-3 my-3">
                     <div className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
-                    <span className="text-xs text-gray-400 uppercase">or use URL</span>
+
+                    <span className="text-xs text-gray-400 uppercase">
+                      or use URL
+                    </span>
+
                     <div className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
                   </div>
 
                   <div className="relative">
                     <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
                     <input
                       type="text"
                       value={
@@ -615,6 +740,7 @@ const AdminProjects = () => {
                   </p>
                 </div>
 
+                {/* Description */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Short Description *
@@ -634,6 +760,7 @@ const AdminProjects = () => {
                   />
                 </div>
 
+                {/* Case Study */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Full Case Study
@@ -652,6 +779,7 @@ const AdminProjects = () => {
                   />
                 </div>
 
+                {/* Technologies */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Technologies (comma separated)
@@ -671,6 +799,7 @@ const AdminProjects = () => {
                   />
                 </div>
 
+                {/* Live URL */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Live URL
@@ -690,6 +819,34 @@ const AdminProjects = () => {
                   />
                 </div>
 
+                {/* Completion Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Completion Date
+                  </label>
+
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+
+                    <input
+                      type="date"
+                      value={formData.completionDate}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          completionDate: e.target.value
+                        })
+                      }
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Select the date when this project was completed.
+                  </p>
+                </div>
+
+                {/* Status */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Status
@@ -705,12 +862,42 @@ const AdminProjects = () => {
                     }
                     className="w-full px-4 py-2.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   >
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                    <option value="On Hold">On Hold</option>
+                    <option value="In Progress">
+                      In Progress
+                    </option>
+
+                    <option value="Completed">
+                      Completed
+                    </option>
+
+                    <option value="On Hold">
+                      On Hold
+                    </option>
                   </select>
                 </div>
 
+                {/* Active */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Visibility
+                  </label>
+
+                  <select
+                    value={formData.active ? 'true' : 'false'}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        active: e.target.value === 'true'
+                      })
+                    }
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="true">Visible</option>
+                    <option value="false">Hidden</option>
+                  </select>
+                </div>
+
+                {/* Featured */}
                 <div className="sm:col-span-2">
                   <label className="flex items-center space-x-3 cursor-pointer">
                     <input
@@ -724,6 +911,7 @@ const AdminProjects = () => {
                       }
                       className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                     />
+
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Featured Project
                     </span>
@@ -731,10 +919,11 @@ const AdminProjects = () => {
                 </div>
               </div>
 
+              {/* Buttons */}
               <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-dark-border">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
                   className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-border rounded-xl transition-colors"
                 >
                   Cancel
@@ -745,7 +934,9 @@ const AdminProjects = () => {
                   disabled={isImageUploading}
                   className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingProject ? 'Update Project' : 'Create Project'}
+                  {editingProject
+                    ? 'Update Project'
+                    : 'Create Project'}
                 </button>
               </div>
             </form>
@@ -753,6 +944,7 @@ const AdminProjects = () => {
         </div>
       )}
 
+      {/* Delete Confirmation */}
       <ConfirmModal
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
